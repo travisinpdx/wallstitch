@@ -2,7 +2,7 @@
 
 **Stitch one wallpaper seamlessly across all your monitors.**
 
-[![CI](https://github.com/travisestill/wallstitch/actions/workflows/ci.yml/badge.svg)](https://github.com/travisestill/wallstitch/actions/workflows/ci.yml)
+[![CI](https://github.com/travisinpdx/wallstitch/actions/workflows/ci.yml/badge.svg)](https://github.com/travisinpdx/wallstitch/actions/workflows/ci.yml)
 [![License: GPL v3+](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20WallStitch-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/fizzy503)
 
@@ -37,7 +37,7 @@ sets them for you.
 
 ## Install
 
-Download from the [latest release](https://github.com/travisestill/wallstitch/releases/latest):
+Download from the [latest release](https://github.com/travisinpdx/wallstitch/releases/latest):
 
 **Flatpak (any distro):**
 ```bash
@@ -57,7 +57,7 @@ Then launch **WallStitch** from your app menu. The command line works too:
 ### From source
 
 ```bash
-git clone https://github.com/travisestill/wallstitch.git
+git clone https://github.com/travisinpdx/wallstitch.git
 cd wallstitch
 python3 -m venv .venv
 .venv/bin/pip install -e .
@@ -133,7 +133,7 @@ To add a desktop, implement the `Backend` protocol in
 
 WallStitch was created with AI: its code, packaging and documentation were
 written by [Claude Code](https://claude.com/claude-code) (Anthropic), directed
-and tested by [@travisestill](https://github.com/travisestill). Out of respect
+and tested by [@travisinpdx](https://github.com/travisinpdx). Out of respect
 for distribution channels that don't accept AI-generated software, such as
 Flathub, it is published only here on GitHub.
 

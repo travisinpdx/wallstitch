@@ -36,19 +36,19 @@
     <binary>wallstitch</binary>
   </provides>
 
-  <url type="homepage">https://github.com/travisestill/wallstitch</url>
-  <url type="bugtracker">https://github.com/travisestill/wallstitch/issues</url>
-  <url type="vcs-browser">https://github.com/travisestill/wallstitch</url>
+  <url type="homepage">https://github.com/travisinpdx/wallstitch</url>
+  <url type="bugtracker">https://github.com/travisinpdx/wallstitch/issues</url>
+  <url type="vcs-browser">https://github.com/travisinpdx/wallstitch</url>
   <url type="donation">https://ko-fi.com/fizzy503</url>
 
   <screenshots>
     <screenshot type="default">
       <caption>Position one image across two monitors, with bezel compensation</caption>
-      <image>https://raw.githubusercontent.com/travisestill/wallstitch/main/docs/screenshots/main.png</image>
+      <image>https://raw.githubusercontent.com/travisinpdx/wallstitch/main/docs/screenshots/main.png</image>
     </screenshot>
     <screenshot>
       <caption>Import wallpapers and run a slideshow that spans every screen</caption>
-      <image>https://raw.githubusercontent.com/travisestill/wallstitch/main/docs/screenshots/slideshow.png</image>
+      <image>https://raw.githubusercontent.com/travisinpdx/wallstitch/main/docs/screenshots/slideshow.png</image>
     </screenshot>
   </screenshots>
 

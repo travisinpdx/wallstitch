@@ -22,4 +22,4 @@ First release.
 - Command-line interface: `screens`, `set`, `reapply`, `restore`, `fetch`,
   `slideshow start|stop|next|status`.
 
-[0.1.0]: https://github.com/travisestill/wallstitch/releases/tag/v0.1.0
+[0.1.0]: https://github.com/travisinpdx/wallstitch/releases/tag/v0.1.0

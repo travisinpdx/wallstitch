@@ -9,9 +9,9 @@ Build-Depends: debhelper-compat (= 13),
                python3-hatchling,
                python3-pytest <!nocheck>,
 Standards-Version: 4.7.2
-Homepage: https://github.com/travisestill/wallstitch
-Vcs-Browser: https://github.com/travisestill/wallstitch
-Vcs-Git: https://github.com/travisestill/wallstitch.git
+Homepage: https://github.com/travisinpdx/wallstitch
+Vcs-Browser: https://github.com/travisinpdx/wallstitch
+Vcs-Git: https://github.com/travisinpdx/wallstitch.git
 Rules-Requires-Root: no
 
 Package: wallstitch

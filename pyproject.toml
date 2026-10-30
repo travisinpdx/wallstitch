@@ -26,8 +26,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/travisestill/wallstitch"
-Issues = "https://github.com/travisestill/wallstitch/issues"
+Homepage = "https://github.com/travisinpdx/wallstitch"
+Issues = "https://github.com/travisinpdx/wallstitch/issues"
 
 [project.scripts]
 wallstitch = "wallstitch.cli:main"
