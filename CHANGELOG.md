@@ -4,6 +4,13 @@ All notable changes to WallStitch are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-11-02
+
+### Fixed
+- Flatpak: WallStitch crashed on start after the KDE 6.11 runtime moved to
+  Qt 6.11.3 ("undefined symbol ... Qt_6_PRIVATE_API"). Rebuilt against the
+  matching PySide6 6.11.3.
+
 ## [0.1.0] - 2026-10-20
 
 First release.
@@ -22,4 +29,5 @@ First release.
 - Command-line interface: `screens`, `set`, `reapply`, `restore`, `fetch`,
   `slideshow start|stop|next|status`.
 
+[0.1.1]: https://github.com/travisinpdx/wallstitch/releases/tag/v0.1.1
 [0.1.0]: https://github.com/travisinpdx/wallstitch/releases/tag/v0.1.0

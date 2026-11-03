@@ -80,6 +80,11 @@
   </keywords>
 
   <releases>
+    <release version="0.1.1" date="2026-11-02">
+      <description>
+        <p>Fixes a crash on start in the Flatpak after the KDE runtime updated to Qt 6.11.3.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-10-20">
       <description>
         <p>First release.</p>

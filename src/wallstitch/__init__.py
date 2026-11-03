@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """WallStitch - stitch one wallpaper seamlessly across all your monitors."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 APP_ID = "io.github.travisestill.WallStitch"
 HOMEPAGE = "https://github.com/travisinpdx/wallstitch"
 DONATE_URL = "https://ko-fi.com/fizzy503"
