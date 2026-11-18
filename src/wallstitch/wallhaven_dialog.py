@@ -57,10 +57,10 @@ class WallhavenDialog(QDialog):
         self._refilter.timeout.connect(self.new_search)
         # Typing only searches on Enter; clicking a filter searches by itself.
         for signal in (
+            self.filter_bar.category.currentIndexChanged,
             self.filter_bar.sort.currentIndexChanged,
             self.filter_bar.color.currentIndexChanged,
             self.filter_bar.match_shape.toggled,
-            *(b.toggled for b in self.filter_bar.category_buttons.values()),
         ):
             signal.connect(self._refilter.start)
 

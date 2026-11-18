@@ -108,6 +108,39 @@ def test_cli_defaults_ignore_saved_gui_filters(tmp_path, monkeypatch):
     assert _filters_from(build_parser().parse_args(["fetch", "3"])) == SearchFilters()
 
 
+@pytest.fixture
+def qapp():
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication
+
+    return QApplication.instance() or QApplication([])
+
+
+def test_category_dropdown_round_trips_every_choice(qapp, tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    from wallstitch.filter_bar import CATEGORY_CHOICES, FilterBar
+
+    bar = FilterBar((5120, 1440))
+    for label, bits in CATEGORY_CHOICES.items():
+        bar.category.setCurrentText(label)
+        f = bar.filters()
+        assert f.categories == bits
+        bar.set_filters(SearchFilters())
+        bar.set_filters(f)
+        assert bar.category.currentText() == label
+
+
+def test_category_dropdown_reports_changes(qapp, tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    from wallstitch.filter_bar import FilterBar
+
+    bar = FilterBar((5120, 1440))
+    changes = []
+    bar.filtersChanged.connect(lambda: changes.append(1))
+    bar.category.setCurrentText("Anime")
+    assert changes and bar.filters().params()["categories"] == "010"
+
+
 def test_cli_rejects_colors_wallhaven_does_not_have():
     with pytest.raises(SystemExit):
         build_parser().parse_args(["fetch", "3", "--color", "123456"])

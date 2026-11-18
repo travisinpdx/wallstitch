@@ -13,12 +13,22 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from wallstitch.wallhaven import CATEGORIES, COLORS, SORTS, SearchFilters, best_ratio
+
+# Category dropdown: label -> wallhaven category bits (general, anime, people)
+CATEGORY_CHOICES = {
+    "All categories": "111",
+    "General": "100",
+    "Anime": "010",
+    "People": "001",
+    "General + Anime": "110",
+    "General + People": "101",
+    "Anime + People": "011",
+}
 
 
 def _swatch(hex_color: str) -> QIcon:
@@ -42,13 +52,10 @@ class FilterBar(QWidget):
         self.query.returnPressed.connect(self.searchRequested)
         self.query.textChanged.connect(self.filtersChanged)
 
-        self.category_buttons: dict[str, QToolButton] = {}
-        for name in CATEGORIES:
-            btn = QToolButton()
-            btn.setText(name.capitalize())
-            btn.setCheckable(True)
-            btn.toggled.connect(self.filtersChanged)
-            self.category_buttons[name] = btn
+        self.category = QComboBox()
+        for label, bits in CATEGORY_CHOICES.items():
+            self.category.addItem(label, bits)
+        self.category.currentIndexChanged.connect(self.filtersChanged)
 
         self.sort = QComboBox()
         self.sort.addItems(list(SORTS))
@@ -81,9 +88,8 @@ class FilterBar(QWidget):
 
         bottom = QHBoxLayout()
         bottom.setContentsMargins(0, 0, 0, 0)
-        for btn in self.category_buttons.values():
-            bottom.addWidget(btn)
-        bottom.addSpacing(12)
+        bottom.addWidget(QLabel("Category:"))
+        bottom.addWidget(self.category)
         bottom.addWidget(QLabel("Sort:"))
         bottom.addWidget(self.sort)
         bottom.addWidget(QLabel("Color:"))
@@ -100,23 +106,23 @@ class FilterBar(QWidget):
         self.set_filters(SearchFilters.load())
 
     def filters(self) -> SearchFilters:
+        bits = self.category.currentData() or "111"
         return SearchFilters(
             query=self.query.text(),
             sort=self.sort.currentText(),
             color=self.color.currentData() or "",
             match_shape=self.match_shape.isChecked() and self.match_shape.isEnabled(),
-            **{name: btn.isChecked() for name, btn in self.category_buttons.items()},
+            **{name: bit == "1" for name, bit in zip(CATEGORIES, bits, strict=True)},
         )
 
     def set_filters(self, f: SearchFilters) -> None:
-        widgets = [self.query, self.sort, self.color, self.match_shape, *self.category_buttons.values()]
+        widgets = [self.query, self.category, self.sort, self.color, self.match_shape]
         for w in widgets:
             w.blockSignals(True)
         self.query.setText(f.query)
+        self.category.setCurrentIndex(max(0, self.category.findData(f.categories)))
         self.sort.setCurrentText(f.sort if f.sort in SORTS else "Random")
         self.color.setCurrentIndex(max(0, self.color.findData(f.color)))
         self.match_shape.setChecked(f.match_shape)
-        for name, btn in self.category_buttons.items():
-            btn.setChecked(getattr(f, name))
         for w in widgets:
             w.blockSignals(False)

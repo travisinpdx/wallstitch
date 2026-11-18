@@ -8,7 +8,7 @@ All notable changes to WallStitch are documented here. The format follows
 
 ### Added
 - Search and filters for wallhaven.cc: keywords (including `+tag -tag`),
-  General/Anime/People categories, sort order (random, relevance, most
+  a category dropdown (General, Anime, People or any mix), sort order (random, relevance, most
   favorited, top this year, most viewed, newest, hot), color, and a "Match my
   screen shape" toggle. Shared by the picker and the slideshow import, and
   remembered between sessions.
