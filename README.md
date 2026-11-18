@@ -19,11 +19,12 @@ sets them for you.
   your monitors.
 - **Bezel compensation:** hide a strip of the image behind the monitor frames
   so straight lines stay straight.
-- **Random wallpapers:** browse 10 random images from
-  [wallhaven.cc](https://wallhaven.cc) that match your desktop's shape and
-  resolution (safe-for-work only); click one to download and edit it. Images
-  are saved to `~/Pictures/WallStitch/`.
-- **Spanning slideshow:** import up to 50 random wallpapers (or use a folder)
+- **Wallpapers from wallhaven.cc:** search and browse images that fit your
+  desktop's resolution (safe-for-work only). Filter by keywords, category,
+  color and sort order (random, top, newest, hot…), and choose whether they
+  must match your screen shape. Click one to download and edit it. Images are
+  saved to `~/Pictures/WallStitch/`.
+- **Spanning slideshow:** import up to 50 wallpapers with the same filters (or use a folder)
   and cycle through them in sync on every monitor. Plasma's own slideshow
   runs a separate timer per screen, so WallStitch uses a small background agent
   that stitches each image across all screens at once. The slideshow keeps
@@ -77,7 +78,8 @@ wallstitch reapply                        # re-apply after changing monitors
 wallstitch restore                        # back to your previous wallpaper
 
 wallstitch fetch 20                       # download 20 random wallpapers that fit
-wallstitch slideshow start --fetch 30 --interval 15 --shuffle
+wallstitch fetch 10 --search "neon city" --sort top --color 0066cc
+wallstitch slideshow start --fetch 30 --search mountains --any-shape --interval 15 --shuffle
 wallstitch slideshow start --folder ~/Pictures/Panoramas
 wallstitch slideshow next | stop | status
 ```

@@ -31,10 +31,11 @@ from PySide6.QtWidgets import (
 
 from wallstitch import paths, slideshow
 from wallstitch.backends import BackendError
+from wallstitch.filter_bar import FilterBar
 from wallstitch.layout import Screen, View
 from wallstitch.preview import Preview, load_preview
 from wallstitch.screens import desktop_pixel_size
-from wallstitch.wallhaven import import_random
+from wallstitch.wallhaven import SearchFilters, import_random
 
 PREVIEW_CACHE = 8  # decoded previews kept around for quick flipping
 
@@ -48,9 +49,10 @@ class ImportWorker(QObject):
     done = Signal(list)
     failed = Signal(str)
 
-    def __init__(self, min_width: int, min_height: int, count: int):
+    def __init__(self, min_width: int, min_height: int, count: int, filters: SearchFilters):
         super().__init__()
         self.args = (min_width, min_height, count)
+        self.filters = filters
         self.cancelled = False
 
     def _report(self, done: int, total: int) -> None:
@@ -60,7 +62,7 @@ class ImportWorker(QObject):
 
     def run(self) -> None:
         try:
-            files = import_random(*self.args, paths.download_dir(), self._report)
+            files = import_random(*self.args, paths.download_dir(), self._report, self.filters)
         except _Cancelled:
             self.failed.emit("cancelled")
         except (OSError, ValueError) as e:
@@ -85,17 +87,22 @@ class SlideshowDialog(QDialog):
         self.count.setValue(20)
         self.import_btn = QPushButton("Import from Wallhaven")
         self.import_btn.setToolTip(
-            f"Download random wallpapers that fit your {desktop_size[0]}×{desktop_size[1]} desktop"
+            f"Download wallpapers matching the filters above that fit your "
+            f"{desktop_size[0]}×{desktop_size[1]} desktop"
         )
         self.import_btn.clicked.connect(self.import_random)
         folder_btn = QPushButton("Use Folder…")
         folder_btn.setToolTip(f"Use the newest {slideshow.MAX_IMAGES} images in a folder")
         folder_btn.clicked.connect(self.use_folder)
 
+        # Same search and filters as the wallpaper picker; Enter imports nothing
+        # by itself, since that could start a large download by accident.
+        self.filter_bar = FilterBar(desktop_size, search_button=False)
+
         import_row = QHBoxLayout()
         import_row.addWidget(QLabel("Get"))
         import_row.addWidget(self.count)
-        import_row.addWidget(QLabel("random wallpapers"))
+        import_row.addWidget(QLabel("wallpapers"))
         import_row.addWidget(self.import_btn)
         import_row.addStretch()
         import_row.addWidget(folder_btn)
@@ -111,6 +118,7 @@ class SlideshowDialog(QDialog):
         self.preview = Preview(screens)
         self.preview.setMinimumSize(480, 200)
         self.preview.bezel = bezel
+        self.preview.empty_text = "Import wallpapers or use a folder, then pick one to frame it"
         self.preview.viewChanged.connect(self._remember_view)
         reset_btn = QPushButton("Reset Framing")
         reset_btn.setToolTip("Go back to the centred, fill-the-screens framing for this image")
@@ -140,6 +148,7 @@ class SlideshowDialog(QDialog):
 
         images_box = QGroupBox("Images")
         images_layout = QVBoxLayout(images_box)
+        images_layout.addWidget(self.filter_bar)
         images_layout.addLayout(import_row)
         images_layout.addWidget(self.progress)
         images_layout.addWidget(splitter, 1)
@@ -262,13 +271,16 @@ class SlideshowDialog(QDialog):
 
     def import_random(self) -> None:
         self.import_btn.setEnabled(False)
+        self.filter_bar.setEnabled(False)
         self.start_btn.setEnabled(False)
         self.progress.setRange(0, 0)  # busy until we know how many were found
         self.progress.setVisible(True)
         self.status.setText("Searching wallhaven…")
 
         self._thread = QThread(self)
-        self._worker = ImportWorker(*self.desktop_size, self.count.value())
+        filters = self.filter_bar.filters()
+        filters.save()
+        self._worker = ImportWorker(*self.desktop_size, self.count.value(), filters)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.progress.connect(self._on_progress)
@@ -286,6 +298,7 @@ class SlideshowDialog(QDialog):
     def _import_finished(self) -> None:
         self.progress.setVisible(False)
         self.import_btn.setEnabled(True)
+        self.filter_bar.setEnabled(True)
         self.start_btn.setEnabled(bool(self.images))
 
     def _on_imported(self, files: list[str]) -> None:

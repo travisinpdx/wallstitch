@@ -28,6 +28,7 @@ class Preview(QWidget):
         self.view = View()
         self.bezel = 0.0
         self._drag_from: QPointF | None = None
+        self.empty_text = "Open an image to get started"
         self.setMinimumSize(640, 240)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
 
@@ -106,7 +107,7 @@ class Preview(QWidget):
 
         if self.image is None:
             painter.setPen(self.palette().text().color())
-            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "Open an image to get started")
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.empty_text)
 
     # --- interaction -------------------------------------------------------
 

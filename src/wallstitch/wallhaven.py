@@ -11,11 +11,11 @@ from __future__ import annotations
 import json
 import urllib.request
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from urllib.parse import urlencode
 
-from wallstitch import __version__
+from wallstitch import __version__, paths
 
 SEARCH_API = "https://wallhaven.cc/api/v1/search"
 
@@ -31,6 +31,74 @@ RATIOS = {
     "10x16": 10 / 16,
 }
 RATIO_TOLERANCE = 0.08  # beyond this, cropping would lose too much of the image
+
+# label -> (wallhaven "sorting", extra params). Order is the order shown in the UI.
+SORTS: dict[str, tuple[str, dict[str, str]]] = {
+    "Random": ("random", {}),
+    "Relevance": ("relevance", {}),
+    "Most favorited": ("favorites", {}),
+    "Top this year": ("toplist", {"topRange": "1y"}),
+    "Most viewed": ("views", {}),
+    "Newest": ("date_added", {}),
+    "Hot": ("hot", {}),
+}
+
+# The colour palette wallhaven.cc lets you search by (hex, no #).
+COLORS = (
+    "660000 990000 cc0000 cc3333 ea4c88 993399 663399 333399 0066cc 0099cc "
+    "66cccc 77cc33 669900 336600 666600 999900 cccc33 ffff00 ffcc33 ff9900 "
+    "ff6600 cc6633 996633 663300 000000 999999 cccccc ffffff 424153"
+).split()
+
+CATEGORIES = ("general", "anime", "people")
+
+
+@dataclass
+class SearchFilters:
+    """What to look for. Saved between sessions and shared by every search."""
+
+    query: str = ""  # wallhaven syntax works too: "+space -planet", "id:123"
+    general: bool = True
+    anime: bool = True
+    people: bool = True
+    sort: str = "Random"  # a key of SORTS
+    color: str = ""  # one of COLORS, or "" for any
+    match_shape: bool = True  # only images with the desktop's aspect ratio
+
+    @property
+    def categories(self) -> str:
+        bits = "".join("1" if getattr(self, c) else "0" for c in CATEGORIES)
+        return bits if "1" in bits else "111"  # none ticked means "don't filter"
+
+    @property
+    def is_random(self) -> bool:
+        return SORTS.get(self.sort, SORTS["Random"])[0] == "random"
+
+    def params(self) -> dict[str, str]:
+        sorting, extra = SORTS.get(self.sort, SORTS["Random"])
+        out = {"sorting": sorting, "categories": self.categories, **extra}
+        if self.query.strip():
+            out["q"] = self.query.strip()
+        if self.color in COLORS:
+            out["colors"] = self.color
+        return out
+
+    @staticmethod
+    def _path() -> Path:
+        return paths.config_dir() / "search.json"
+
+    def save(self) -> None:
+        self._path().parent.mkdir(parents=True, exist_ok=True)
+        self._path().write_text(json.dumps(asdict(self), indent=2))
+
+    @classmethod
+    def load(cls) -> SearchFilters:
+        try:
+            data = json.loads(cls._path().read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return cls()
+        known = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in data.items() if k in known})
 
 
 @dataclass(frozen=True)
@@ -55,16 +123,20 @@ def best_ratio(width: float, height: float) -> str | None:
 
 
 def search_url(
-    min_width: int, min_height: int, ratio: str | None = None, page: int = 1, seed: str | None = None
+    min_width: int,
+    min_height: int,
+    ratio: str | None = None,
+    page: int = 1,
+    seed: str | None = None,
+    filters: SearchFilters | None = None,
 ) -> str:
-    """URL for a random page of safe-for-work wallpapers at least this large.
+    """URL for a page of safe-for-work wallpapers at least this large.
 
     Pass the ``seed`` from the first page's reply to get further pages of the
     same random order without repeats.
     """
     params = {
-        "sorting": "random",
-        "categories": "111",  # general, anime, people
+        **(filters or SearchFilters()).params(),
         "purity": "100",  # SFW only; NSFW requires an API key anyway
         "atleast": f"{min_width}x{min_height}",
     }
@@ -112,13 +184,24 @@ def _fetch(url: str, timeout: float = 30) -> bytes:
         return response.read()
 
 
-def find_random(min_width: int, min_height: int, count: int) -> list[Wallpaper]:
-    """Up to ``count`` distinct random wallpapers that fit the desktop."""
-    for ratio in dict.fromkeys([best_ratio(min_width, min_height), None]):
+def shape_ratios(min_width: int, min_height: int, filters: SearchFilters) -> list[str | None]:
+    """Ratio filters to try in order: the desktop's shape first, then any shape."""
+    if not filters.match_shape:
+        return [None]
+    return list(dict.fromkeys([best_ratio(min_width, min_height), None]))
+
+
+def find_random(
+    min_width: int, min_height: int, count: int, filters: SearchFilters | None = None
+) -> list[Wallpaper]:
+    """Up to ``count`` distinct wallpapers that fit the desktop and the filters."""
+    filters = filters or SearchFilters()
+    for ratio in shape_ratios(min_width, min_height, filters):
         found: dict[str, Wallpaper] = {}
         seed, page, last_page = None, 1, 1
         while len(found) < count and page <= last_page:
-            results, meta = parse_search_page(_fetch(search_url(min_width, min_height, ratio, page, seed)))
+            url = search_url(min_width, min_height, ratio, page, seed, filters)
+            results, meta = parse_search_page(_fetch(url))
             seed = meta.get("seed") or seed
             last_page = int(meta.get("last_page") or 1)
             for wp in results:
@@ -147,12 +230,13 @@ def import_random(
     count: int,
     dest_dir: Path,
     progress: Callable[[int, int], None] | None = None,
+    filters: SearchFilters | None = None,
 ) -> list[Path]:
-    """Find and download ``count`` random wallpapers; returns the saved files.
+    """Find and download ``count`` wallpapers; returns the saved files.
 
     Individual failed downloads are skipped rather than aborting the batch.
     """
-    wallpapers = find_random(min_width, min_height, count)
+    wallpapers = find_random(min_width, min_height, count, filters)
     paths: list[Path] = []
     for i, wp in enumerate(wallpapers):
         if progress:

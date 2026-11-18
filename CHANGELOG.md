@@ -4,6 +4,22 @@ All notable changes to WallStitch are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Search and filters for wallhaven.cc: keywords (including `+tag -tag`),
+  General/Anime/People categories, sort order (random, relevance, most
+  favorited, top this year, most viewed, newest, hot), color, and a "Match my
+  screen shape" toggle. Shared by the picker and the slideshow import, and
+  remembered between sessions.
+- The picker pages through results with More (or Shuffle for random order)
+  and says when few images match your screen shape.
+- CLI: `--search`, `--category`, `--sort`, `--color` and `--any-shape` for
+  `fetch` and `slideshow start --fetch`.
+
+### Changed
+- "Random Wallpapers…" is now "Browse Wallhaven…".
+
 ## [0.1.1] - 2026-11-02
 
 ### Fixed

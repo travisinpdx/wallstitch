@@ -42,8 +42,8 @@ class MainWindow(QMainWindow):
 
         open_btn = QPushButton("Open Image…")
         open_btn.clicked.connect(self.open_image)
-        random_btn = QPushButton("Random Wallpapers…")
-        random_btn.setToolTip("Browse 10 random wallpapers from wallhaven.cc that fit your monitors")
+        random_btn = QPushButton("Browse Wallhaven…")
+        random_btn.setToolTip("Search and browse wallpapers from wallhaven.cc that fit your monitors")
         random_btn.clicked.connect(self.random_wallpapers)
         slideshow_btn = QPushButton("Slideshow…")
         slideshow_btn.setToolTip("Import up to 50 wallpapers and cycle through them on all monitors")

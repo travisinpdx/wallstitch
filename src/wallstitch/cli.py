@@ -51,16 +51,21 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("reapply", help="re-apply the last wallpaper (e.g. after a layout change)")
     sub.add_parser("restore", help="put back the wallpaper you had before WallStitch")
 
-    f = sub.add_parser("fetch", help="download N random wallpapers from wallhaven.cc that fit your monitors")
+    search = _search_parser()
+    f = sub.add_parser(
+        "fetch", parents=[search], help="download N wallpapers from wallhaven.cc that fit your monitors"
+    )
     f.add_argument("count", type=_count)
     f.add_argument("--dir", type=Path, help="where to save them (default ~/Pictures/WallStitch)")
 
     show = sub.add_parser("slideshow", help="cycle through up to 50 wallpapers in sync on all monitors")
     show_sub = show.add_subparsers(dest="action", required=True, metavar="{start,stop,next,status}")
-    start = show_sub.add_parser("start", help="start a slideshow")
+    start = show_sub.add_parser("start", parents=[search], help="start a slideshow")
     source = start.add_mutually_exclusive_group(required=True)
     source.add_argument("--folder", type=Path, help="use the newest 50 images in this folder")
-    source.add_argument("--fetch", type=_count, metavar="N", help="download N random wallpapers and use them")
+    source.add_argument(
+        "--fetch", type=_count, metavar="N", help="download N wallpapers (see search filters) and use them"
+    )
     source.add_argument("--images", type=Path, nargs="+", metavar="IMAGE", help="use these images")
     start.add_argument(
         "--interval", type=int, default=10, metavar="MIN", help="minutes per image (default 10)"
@@ -83,15 +88,73 @@ def _count(value: str) -> int:
     return n
 
 
-def _fetch(count: int, dest: Path) -> list[Path]:
+# CLI-friendly names for wallhaven.SORTS labels
+SORT_NAMES = {
+    "random": "Random",
+    "relevance": "Relevance",
+    "favorites": "Most favorited",
+    "top": "Top this year",
+    "views": "Most viewed",
+    "newest": "Newest",
+    "hot": "Hot",
+}
+
+
+def _search_parser() -> argparse.ArgumentParser:
+    """Wallhaven search flags shared by `fetch` and `slideshow start --fetch`."""
+    from wallstitch.wallhaven import CATEGORIES, COLORS
+
+    def color(value: str) -> str:
+        value = value.lower().lstrip("#")
+        if value not in COLORS:
+            raise argparse.ArgumentTypeError(f"pick one of wallhaven's colors: {', '.join(COLORS)}")
+        return value
+
+    p = argparse.ArgumentParser(add_help=False)
+    g = p.add_argument_group("search filters (wallhaven.cc)")
+    g.add_argument(
+        "--search", metavar="TEXT", default="", help='keywords, e.g. "mountains" or "+space -planet"'
+    )
+    g.add_argument(
+        "--category",
+        choices=CATEGORIES,
+        action="append",
+        help="only these categories (repeatable; default all)",
+    )
+    g.add_argument("--sort", choices=list(SORT_NAMES), default="random", help="default random")
+    g.add_argument("--color", type=color, metavar="HEX", help="dominant color, e.g. 336600")
+    g.add_argument(
+        "--any-shape",
+        action="store_true",
+        help="don't require your desktop's aspect ratio (many more results)",
+    )
+    return p
+
+
+def _filters_from(args: argparse.Namespace):
+    from wallstitch.wallhaven import CATEGORIES, SearchFilters
+
+    chosen = set(args.category or CATEGORIES)
+    return SearchFilters(
+        query=args.search,
+        sort=SORT_NAMES[args.sort],
+        color=args.color or "",
+        match_shape=not args.any_shape,
+        **{c: c in chosen for c in CATEGORIES},
+    )
+
+
+def _fetch(count: int, dest: Path, args: argparse.Namespace) -> list[Path]:
     from wallstitch.screens import desktop_pixel_size, detect_screens
     from wallstitch.wallhaven import import_random
 
     def progress(done: int, total: int) -> None:
         print(f"\rDownloading {done}/{total}…", end="", flush=True)
 
-    files = import_random(*desktop_pixel_size(detect_screens()), count, dest, progress)
+    files = import_random(*desktop_pixel_size(detect_screens()), count, dest, progress, _filters_from(args))
     print()
+    if not files:
+        print("No wallpapers matched. Try fewer search words or --any-shape.")
     return files
 
 
@@ -149,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:
             print("Previous wallpaper restored.")
         elif args.command == "fetch":
             dest = args.dir or paths.download_dir()
-            files = _fetch(args.count, dest)
+            files = _fetch(args.count, dest, args)
             print(f"Saved {len(files)} wallpapers to {dest}")
         elif args.command == "slideshow":
             return _slideshow(args)
@@ -164,7 +227,7 @@ def _slideshow(args: argparse.Namespace) -> int:
 
     if args.action == "start":
         if args.fetch:
-            images = [str(p) for p in _fetch(args.fetch, paths.download_dir())]
+            images = [str(p) for p in _fetch(args.fetch, paths.download_dir(), args)]
         elif args.folder:
             images = slideshow.images_in(args.folder)
         else:
