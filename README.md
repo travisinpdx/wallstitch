@@ -19,11 +19,15 @@ sets them for you.
   your monitors.
 - **Bezel compensation:** hide a strip of the image behind the monitor frames
   so straight lines stay straight.
-- **Wallpapers from wallhaven.cc:** search and browse images that fit your
-  desktop's resolution (safe-for-work only). Filter by keywords, category,
-  color and sort order (random, top, newest, hot…), and choose whether they
-  must match your screen shape. Click one to download and edit it. Images are
-  saved to `~/Pictures/WallStitch/`.
+- **Find wallpapers online** that fit your desktop's resolution and shape,
+  so nothing gets cropped or stretched. Click one to download and edit it;
+  images are saved to `~/Pictures/WallStitch/`.
+  - [wallhaven.cc](https://wallhaven.cc): every kind of wallpaper, art and
+    anime included (safe-for-work only). Filter by keywords, category, color
+    and sort order (random, top, newest, hot…).
+  - [Wikimedia Commons](https://commons.wikimedia.org): thousands of freely
+    licensed panoramic photos, a great source of true 32:9 images. Hover a
+    thumbnail for its author and license.
 - **Spanning slideshow:** import up to 50 wallpapers with the same filters (or use a folder)
   and cycle through them in sync on every monitor. Plasma's own slideshow
   runs a separate timer per screen, so WallStitch uses a small background agent
@@ -79,6 +83,7 @@ wallstitch restore                        # back to your previous wallpaper
 
 wallstitch fetch 20                       # download 20 random wallpapers that fit
 wallstitch fetch 10 --search "neon city" --sort top --color 0066cc
+wallstitch fetch 10 --source commons --search "mountains"   # free panoramas
 wallstitch slideshow start --fetch 30 --search mountains --any-shape --interval 15 --shuffle
 wallstitch slideshow start --folder ~/Pictures/Panoramas
 wallstitch slideshow next | stop | status

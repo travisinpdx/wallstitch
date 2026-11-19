@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from wallstitch import __version__
+from wallstitch import USER_AGENT, commons
 from wallstitch.filter_bar import FilterBar
 from wallstitch.paths import download_dir
 from wallstitch.wallhaven import SearchFilters, Wallpaper, parse_search_page, search_url, shape_ratios
@@ -28,6 +28,7 @@ from wallstitch.wallhaven import SearchFilters, Wallpaper, parse_search_page, se
 COUNT = 10
 THUMB_WIDTH = 300
 FILTER_DELAY_MS = 400  # wait for the user to finish clicking before searching
+COMMONS_PAGES_PER_STEP = 6  # Commons pages to scan before showing what was found
 
 
 class WallhavenDialog(QDialog):
@@ -35,7 +36,7 @@ class WallhavenDialog(QDialog):
 
     def __init__(self, min_width: int, min_height: int, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Wallpapers from Wallhaven")
+        self.setWindowTitle("Find Wallpapers")
         self.min_width, self.min_height = min_width, min_height
         self.chosen_path: Path | None = None
         self._replies: list[QNetworkReply] = []
@@ -48,6 +49,10 @@ class WallhavenDialog(QDialog):
         self.last_page = 1
         self.seed: str | None = None
         self.ratios: list[str | None] = []  # shape filters still to try
+        # Commons: fitting files whose links aren't fetched yet, and where to search next.
+        self.pending: list[commons.Candidate] = []
+        self.commons_offset: int | None = 0
+        self.scanned = 0
 
         self.net = QNetworkAccessManager(self)
 
@@ -57,6 +62,7 @@ class WallhavenDialog(QDialog):
         self._refilter.timeout.connect(self.new_search)
         # Typing only searches on Enter; clicking a filter searches by itself.
         for signal in (
+            self.filter_bar.source.currentIndexChanged,
             self.filter_bar.category.currentIndexChanged,
             self.filter_bar.sort.currentIndexChanged,
             self.filter_bar.color.currentIndexChanged,
@@ -112,7 +118,7 @@ class WallhavenDialog(QDialog):
 
     def _get(self, url: str) -> QNetworkReply:
         request = QNetworkRequest(QUrl(url))
-        request.setHeader(QNetworkRequest.KnownHeaders.UserAgentHeader, f"WallStitch/{__version__}")
+        request.setHeader(QNetworkRequest.KnownHeaders.UserAgentHeader, USER_AGENT)
         reply = self.net.get(request)
         self._replies.append(reply)
         reply.finished.connect(lambda: self._replies.remove(reply) if reply in self._replies else None)
@@ -131,35 +137,105 @@ class WallhavenDialog(QDialog):
         self.filters.save()
         self.results, self.offset = [], 0
         self.ratios = shape_ratios(self.min_width, self.min_height, self.filters)
-        self.more_btn.setText("Shuffle" if self.filters.is_random else "More")
-        self.more_btn.setToolTip(
-            "Show 10 different wallpapers" if self.filters.is_random else "Show the next 10 results"
-        )
+        self.pending, self.commons_offset = [], 0
+        shuffle = self.filters.is_random and not self.is_commons
+        self.more_btn.setText("Shuffle" if shuffle else "More")
+        self.more_btn.setToolTip("Show 10 different wallpapers" if shuffle else "Show the next 10 results")
         self._start_ratio()
+
+    @property
+    def is_commons(self) -> bool:
+        return self.filters.source == "commons"
+
+    @property
+    def source_name(self) -> str:
+        return "Wikimedia Commons" if self.is_commons else "wallhaven"
 
     def _start_ratio(self) -> None:
         self.page, self.last_page, self.seed = 0, 1, None
         self._fetch_page()
 
+    def _has_more(self) -> bool:
+        if self.is_commons:
+            return bool(self.pending) or self.commons_offset is not None
+        return self.page < self.last_page
+
     def _fetch_page(self) -> None:
-        self.page += 1
         for btn in self.buttons:
             btn.setVisible(False)
         self.more_btn.setEnabled(False)
         self.status.setText("Searching…")
+        if self.is_commons:
+            self.scanned = 0
+            self._commons_step()
+            return
+        self.page += 1
         url = search_url(self.min_width, self.min_height, self.ratios[0], self.page, self.seed, self.filters)
         reply = self._get(url)
         reply.finished.connect(lambda: self._on_search(reply))
 
-    def _on_search(self, reply: QNetworkReply) -> None:
+    def _body(self, reply: QNetworkReply) -> bytes | None:
+        """The reply's data, or None after showing what went wrong."""
         self.more_btn.setEnabled(True)
         if reply.error() == QNetworkReply.NetworkError.OperationCanceledError:
-            return
+            return None
         if reply.error() != QNetworkReply.NetworkError.NoError:
-            self.status.setText(f"Couldn't reach wallhaven: {reply.errorString()}")
+            self.status.setText(f"Couldn't reach {self.source_name}: {reply.errorString()}")
+            return None
+        return bytes(reply.readAll())
+
+    # Commons can't filter by shape, so scan pages of results until enough fit,
+    # then fetch links and thumbnails for those in one go.
+
+    def _commons_step(self) -> None:
+        enough = len(self.pending) >= COUNT or self.scanned >= COMMONS_PAGES_PER_STEP
+        if self.pending and (enough or self.commons_offset is None):
+            batch = self.pending[: commons.DETAILS_BATCH]
+            self.pending = self.pending[commons.DETAILS_BATCH :]
+            reply = self._get(commons.details_url(batch))
+            reply.finished.connect(lambda: self._on_commons_details(reply, batch))
+        elif self.commons_offset is not None and self.scanned < COMMONS_PAGES_PER_STEP:
+            self.more_btn.setEnabled(False)
+            self.status.setText(f"Searching… checked {self.commons_offset} images")
+            url = commons.search_url(self.min_width, self.min_height, self.filters.query, self.commons_offset)
+            reply = self._get(url)
+            reply.finished.connect(lambda: self._on_commons_search(reply))
+        else:
+            self._show()
+
+    def _on_commons_search(self, reply: QNetworkReply) -> None:
+        body = self._body(reply)
+        if body is None:
             return
         try:
-            found, meta = parse_search_page(bytes(reply.readAll()))
+            found, self.commons_offset = commons.parse_search(
+                body, self.min_width, self.min_height, self.filters.match_shape
+            )
+        except ValueError as e:
+            self.status.setText(f"Wikimedia Commons error: {e}")
+            return
+        known = {c.title for c in self.pending} | {w.page_url for w in self.results}
+        self.pending += [c for c in found if c.title not in known]
+        self.scanned += 1
+        self._commons_step()
+
+    def _on_commons_details(self, reply: QNetworkReply, batch: list[commons.Candidate]) -> None:
+        body = self._body(reply)
+        if body is None:
+            return
+        try:
+            self.results += commons.parse_details(body, batch)
+        except ValueError as e:
+            self.status.setText(f"Wikimedia Commons error: {e}")
+            return
+        self._show()
+
+    def _on_search(self, reply: QNetworkReply) -> None:
+        body = self._body(reply)
+        if body is None:
+            return
+        try:
+            found, meta = parse_search_page(body)
         except ValueError as e:
             self.status.setText(f"Wallhaven error: {e}")
             return
@@ -177,6 +253,12 @@ class WallhavenDialog(QDialog):
 
     def _show(self) -> None:
         self.wallpapers = self.results[self.offset : self.offset + COUNT]
+        if not self.wallpapers and self.is_commons and self._has_more():
+            self.status.setText(
+                f"None of the first {self.commons_offset} images fit yet. "
+                "Press More to keep looking, or try other words."
+            )
+            return
         if not self.wallpapers:
             self.status.setText(
                 "No wallpapers match these filters. Try fewer words, another color, "
@@ -188,7 +270,8 @@ class WallhavenDialog(QDialog):
         for btn, wp in zip(self.buttons, self.wallpapers, strict=False):
             btn.setIcon(QPixmap())
             btn.setText(f"{wp.width}×{wp.height}")
-            btn.setToolTip(f"{wp.page_url}\nClick to use · right-click to open on wallhaven")
+            credit = f"{wp.credit}\n" if wp.credit else ""
+            btn.setToolTip(f"{wp.page_url}\n{credit}Click to use · right-click to open its page")
             btn.setVisible(True)
             thumb = self._get(wp.thumb_url)
             thumb.finished.connect(lambda thumb=thumb, btn=btn: self._on_thumb(thumb, btn))
@@ -196,7 +279,9 @@ class WallhavenDialog(QDialog):
         shown = f"{self.offset + 1}–{self.offset + len(self.wallpapers)}"
         message = f"Showing {shown}. Click a wallpaper to use it."
         exact_only = self.filters.match_shape and self.ratios[0] is not None
-        if exact_only and self.page >= self.last_page and len(self.results) < 2 * COUNT:
+        if self.is_commons:
+            message += " Freely licensed; hover for the author and license."
+        elif exact_only and self.page >= self.last_page and len(self.results) < 2 * COUNT:
             message += f" Only {len(self.results)} match your screen shape — untick it for more."
         elif self.filters.match_shape and self.ratios[0] is None:
             message += " Nothing matched your screen shape, so these are other shapes."
@@ -204,12 +289,13 @@ class WallhavenDialog(QDialog):
 
     def more(self) -> None:
         self._abort_all()
-        self.offset += COUNT
-        if self.offset + COUNT > len(self.results) and self.page < self.last_page:
+        # Step past what's on screen; if nothing was found yet, keep looking from here.
+        self.offset = min(self.offset + len(self.wallpapers), len(self.results))
+        if self.offset + COUNT > len(self.results) and self._has_more():
             self._fetch_page()
         elif self.offset < len(self.results):
             self._show()
-        elif self.filters.is_random:
+        elif self.filters.is_random and not self.is_commons:
             self.new_search()  # seen them all: start a fresh random order
         else:
             self.offset = 0  # end of the results: wrap around

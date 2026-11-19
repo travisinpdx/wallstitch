@@ -4,6 +4,18 @@ All notable changes to WallStitch are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Wikimedia Commons as a second wallpaper source: freely licensed panoramic
+  photos, many of them true 32:9. Pick it from the new Source dropdown in the
+  picker and the slideshow import, or use `--source commons` on the command
+  line. Only images within 2% of your desktop's shape are shown, so nothing
+  is visibly cropped. Hover a thumbnail for its author and license.
+
+### Changed
+- "Browse Wallhaven…" is now "Find Wallpapers…".
+
 ## [0.2.0] - 2026-11-19
 
 ### Added

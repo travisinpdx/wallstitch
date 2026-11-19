@@ -52,9 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("restore", help="put back the wallpaper you had before WallStitch")
 
     search = _search_parser()
-    f = sub.add_parser(
-        "fetch", parents=[search], help="download N wallpapers from wallhaven.cc that fit your monitors"
-    )
+    f = sub.add_parser("fetch", parents=[search], help="download N wallpapers that fit your monitors")
     f.add_argument("count", type=_count)
     f.add_argument("--dir", type=Path, help="where to save them (default ~/Pictures/WallStitch)")
 
@@ -101,8 +99,8 @@ SORT_NAMES = {
 
 
 def _search_parser() -> argparse.ArgumentParser:
-    """Wallhaven search flags shared by `fetch` and `slideshow start --fetch`."""
-    from wallstitch.wallhaven import CATEGORIES, COLORS
+    """Search flags shared by `fetch` and `slideshow start --fetch`."""
+    from wallstitch.wallhaven import CATEGORIES, COLORS, SOURCES
 
     def color(value: str) -> str:
         value = value.lower().lstrip("#")
@@ -111,7 +109,14 @@ def _search_parser() -> argparse.ArgumentParser:
         return value
 
     p = argparse.ArgumentParser(add_help=False)
-    g = p.add_argument_group("search filters (wallhaven.cc)")
+    g = p.add_argument_group("search filters")
+    g.add_argument(
+        "--source",
+        choices=list(SOURCES),
+        default="wallhaven",
+        help="wallhaven (default) or commons (Wikimedia Commons panoramas;"
+        " only --search and --any-shape apply)",
+    )
     g.add_argument(
         "--search", metavar="TEXT", default="", help='keywords, e.g. "mountains" or "+space -planet"'
     )
@@ -140,6 +145,7 @@ def _filters_from(args: argparse.Namespace):
         sort=SORT_NAMES[args.sort],
         color=args.color or "",
         match_shape=not args.any_shape,
+        source=args.source,
         **{c: c in chosen for c in CATEGORIES},
     )
 

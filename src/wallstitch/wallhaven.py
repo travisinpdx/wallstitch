@@ -15,7 +15,7 @@ from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from urllib.parse import urlencode
 
-from wallstitch import __version__, paths
+from wallstitch import USER_AGENT, paths
 
 SEARCH_API = "https://wallhaven.cc/api/v1/search"
 
@@ -52,6 +52,9 @@ COLORS = (
 
 CATEGORIES = ("general", "anime", "people")
 
+# Where wallpapers can come from: key -> label. See commons.py for the second one.
+SOURCES = {"wallhaven": "Wallhaven", "commons": "Wikimedia Commons"}
+
 
 @dataclass
 class SearchFilters:
@@ -64,6 +67,7 @@ class SearchFilters:
     sort: str = "Random"  # a key of SORTS
     color: str = ""  # one of COLORS, or "" for any
     match_shape: bool = True  # only images with the desktop's aspect ratio
+    source: str = "wallhaven"  # a key of SOURCES; Commons only uses query and match_shape
 
     @property
     def categories(self) -> str:
@@ -109,10 +113,12 @@ class Wallpaper:
     thumb_url: str
     width: int
     height: int
+    name: str = ""  # file name to save as; defaults to the last part of image_url
+    credit: str = ""  # author and license, where the source requires attribution
 
     @property
     def filename(self) -> str:
-        return self.image_url.rsplit("/", 1)[-1]
+        return self.name or self.image_url.rsplit("/", 1)[-1]
 
 
 def best_ratio(width: float, height: float) -> str | None:
@@ -179,7 +185,7 @@ def parse_search_page(body: bytes | str) -> tuple[list[Wallpaper], dict]:
 
 
 def _fetch(url: str, timeout: float = 30) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": f"WallStitch/{__version__}"})
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return response.read()
 
@@ -236,7 +242,12 @@ def import_random(
 
     Individual failed downloads are skipped rather than aborting the batch.
     """
-    wallpapers = find_random(min_width, min_height, count, filters)
+    if filters and filters.source == "commons":
+        from wallstitch import commons
+
+        wallpapers = commons.find(min_width, min_height, count, filters)
+    else:
+        wallpapers = find_random(min_width, min_height, count, filters)
     paths: list[Path] = []
     for i, wp in enumerate(wallpapers):
         if progress:

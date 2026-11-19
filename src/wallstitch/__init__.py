@@ -6,3 +6,6 @@ __version__ = "0.2.0"
 APP_ID = "io.github.travisestill.WallStitch"
 HOMEPAGE = "https://github.com/travisinpdx/wallstitch"
 DONATE_URL = "https://ko-fi.com/fizzy503"
+# Sent with every web request. Wikimedia asks clients to say who they are and
+# where to learn more; the project page is that contact, not any person.
+USER_AGENT = f"WallStitch/{__version__} (+{HOMEPAGE})"

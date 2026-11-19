@@ -85,7 +85,7 @@ class SlideshowDialog(QDialog):
         self.count = QSpinBox()
         self.count.setRange(1, slideshow.MAX_IMAGES)
         self.count.setValue(20)
-        self.import_btn = QPushButton("Import from Wallhaven")
+        self.import_btn = QPushButton("Import")
         self.import_btn.setToolTip(
             f"Download wallpapers matching the filters above that fit your "
             f"{desktop_size[0]}×{desktop_size[1]} desktop"
@@ -275,7 +275,7 @@ class SlideshowDialog(QDialog):
         self.start_btn.setEnabled(False)
         self.progress.setRange(0, 0)  # busy until we know how many were found
         self.progress.setVisible(True)
-        self.status.setText("Searching wallhaven…")
+        self.status.setText("Searching…")
 
         self._thread = QThread(self)
         filters = self.filter_bar.filters()
