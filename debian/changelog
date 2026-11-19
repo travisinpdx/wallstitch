@@ -1,3 +1,10 @@
+wallstitch (0.2.0) unstable; urgency=medium
+
+  * Search and filters for wallhaven.cc (keywords, category, sort, color,
+    screen shape), in the picker, slideshow import and CLI.
+
+ -- Travis Estill <immyouany@gmail.com>  Thu, 19 Nov 2026 12:00:00 -0800
+
 wallstitch (0.1.1) unstable; urgency=medium
 
   * Flatpak rebuild against Qt 6.11.3; no changes to the .deb itself.

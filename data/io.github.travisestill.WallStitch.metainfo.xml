@@ -80,6 +80,17 @@
   </keywords>
 
   <releases>
+    <release version="0.2.0" date="2026-11-19">
+      <description>
+        <p>Search and filters for wallhaven.cc.</p>
+        <ul>
+          <li>Search by keywords, category, color and sort order (random, top, newest, hot…)</li>
+          <li>Choose whether results must match your screen shape</li>
+          <li>Page through results; filters are shared with slideshow import and remembered</li>
+          <li>New CLI options: --search, --category, --sort, --color, --any-shape</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.1" date="2026-11-02">
       <description>
         <p>Fixes a crash on start in the Flatpak after the KDE runtime updated to Qt 6.11.3.</p>
